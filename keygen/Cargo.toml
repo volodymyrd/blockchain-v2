@@ -1,0 +1,20 @@
+[package]
+name = "blockchain-v2-keygen"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+blockchain-v2-cli-config = { workspace = true }
+
+clap = { workspace = true }
+rpassword = { workspace = true }
+
+#solana sdk
+solana-keypair = { workspace = true }
+solana-signer = { workspace = true }
+
+tiny-bip39 = { workspace = true }

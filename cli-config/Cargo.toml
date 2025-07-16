@@ -1,0 +1,12 @@
+[package]
+name = "blockchain-v2-cli-config"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_yaml_ng = { workspace = true }

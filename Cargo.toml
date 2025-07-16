@@ -1,0 +1,26 @@
+[workspace]
+members = ["cli-config", "keygen"]
+
+resolver = "2"
+
+[workspace.package]
+version = "0.0.1"
+authors = ["Volodymyr Dotsenko <volodymyrdotsenko@gmail.com>"]
+repository = "https://github.com/volodymyrd/blockchain-v2"
+homepage = "https://github.com/volodymyrd/blockchain-v2"
+license = "Apache-2.0"
+edition = "2021"
+
+[workspace.dependencies]
+blockchain-v2-cli-config = { path = "cli-config" }
+clap = { version = "4.5.41", features = ["cargo"] }
+rpassword = "7.4"
+
+# solana-sdk
+solana-keypair = "2.2.3"
+solana-signer = "2.2.1"
+
+serde = { version = "1.0.219", features = ["derive"] }
+serde_yaml_ng = "0.10.0"
+
+tiny-bip39 = "2.0.0"
