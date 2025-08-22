@@ -1,5 +1,5 @@
 [package]
-name = "blockchain-keygen"
+name = "blockchain-clap-utils"
 version.workspace = true
 authors.workspace = true
 repository.workspace = true
@@ -8,13 +8,6 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-blockchain-cli-config = { workspace = true }
-
-clap = { workspace = true }
-rpassword = { workspace = true }
-
-#solana sdk
 solana-keypair = { workspace = true }
 solana-signer = { workspace = true }
-
-tiny-bip39 = { workspace = true }
+solana-pubkey = { workspace = true }

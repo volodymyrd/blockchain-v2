@@ -1,0 +1,15 @@
+[package]
+name = "blockchain-net-utils"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+log = { workspace = true }
+nix = { workspace = true, features = ["socket"] }
+rand = { workspace = true }
+socket2 = { workspace = true }
+url = { workspace = true }

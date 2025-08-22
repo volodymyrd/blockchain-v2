@@ -6,7 +6,7 @@ use crate::mnemonic::{
     try_get_word_count, word_count_arg,
 };
 use bip39::{Mnemonic, MnemonicType, Seed};
-use blockchain_v2_cli_config::Config;
+use blockchain_cli_config::Config;
 use clap::{crate_description, crate_name, crate_version, Arg, Command};
 use solana_keypair::{keypair_from_seed, write_keypair, write_keypair_file, Keypair};
 use solana_signer::Signer;

@@ -1,0 +1,23 @@
+[package]
+name = "blockchain-ledger"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+bincode = { workspace = true }
+fs_extra = { workspace = true }
+prost = { workspace = true }
+solana-accounts-db = { workspace = true }
+solana-clock = { workspace = true }
+thiserror = { workspace = true }
+
+[dependencies.rocksdb]
+# Avoid the vendored bzip2 within rocksdb-sys that can cause linker conflicts
+# when also using the bzip2 crate
+version = "0.23.0"
+default-features = false
+features = ["lz4"]

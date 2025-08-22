@@ -1,5 +1,5 @@
-use std::error;
 use rpassword::prompt_password;
+use std::error;
 
 /// Prompts user for a passphrase and then asks for confirmation to check for mistakes.
 pub(crate) fn prompt_passphrase(prompt: &str) -> Result<String, Box<dyn error::Error>> {

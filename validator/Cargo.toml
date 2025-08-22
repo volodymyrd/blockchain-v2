@@ -1,0 +1,23 @@
+[package]
+name = "blockchain-validator"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+blockchain-accounts-db = { workspace = true }
+blockchain-clap-utils = { workspace = true }
+blockchain-core = { workspace = true }
+blockchain-gossip = { workspace = true }
+blockchain-net-utils = { workspace = true }
+clap = { workspace = true }
+log = { workspace = true }
+solana-keypair = { workspace = true }
+solana-hash = { workspace = true }
+solana-logger = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-signer = { workspace = true }
+thiserror = { workspace = true }

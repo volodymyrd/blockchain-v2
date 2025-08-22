@@ -1,0 +1,16 @@
+[package]
+name = "blockchain-gossip"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+blockchain-net-utils = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }
+solana-pubkey = { workspace = true, features = ["serde"] }
+solana-serde-varint = { workspace = true }
+solana-time-utils = { workspace = true }
