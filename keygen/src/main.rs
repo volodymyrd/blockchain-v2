@@ -7,10 +7,11 @@ use crate::mnemonic::{
 };
 use bip39::{Mnemonic, MnemonicType, Seed};
 use blockchain_cli_config::Config;
-use clap::{crate_description, crate_name, crate_version, Arg, Command};
+use clap::{crate_description, crate_name, crate_version, Arg, ArgAction, ArgMatches, Command};
 use solana_keypair::{keypair_from_seed, write_keypair, write_keypair_file, Keypair};
 use solana_signer::Signer;
 use std::error;
+use std::path::Path;
 
 const CONFIG_FILE: &str = "config_file";
 
@@ -38,9 +39,17 @@ fn main() -> Result<(), Box<dyn error::Error>> {
                         .help("Path to generated file"),
                 )
                 .arg(
+                    Arg::new("force")
+                        .short('f')
+                        .long("force")
+                        .action(ArgAction::SetTrue)
+                        .help("Overwrite the output file if it exists"),
+                )
+                .arg(
                     Arg::new("silent")
                         .short('s')
                         .long("silent")
+                        .action(ArgAction::SetTrue)
                         .help("Do not display seed phrase."),
                 )
                 .key_generation_common_args(),
@@ -63,13 +72,13 @@ fn main() -> Result<(), Box<dyn error::Error>> {
                 } else if matches.try_contains_id(NO_OUTFILE_ARG.name)? {
                     None
                 } else {
-                    path.extend([".config", "blockchain-v2", "id.json"]);
+                    path.extend([".config", "blockchain", "id.json"]);
                     Some(path.to_str().unwrap())
                 };
                 let word_count = try_get_word_count(matches)?.unwrap();
                 let language = try_get_language(matches)?.unwrap();
 
-                let silent = matches.try_contains_id("silent")?;
+                let silent = matches.get_flag("silent");
                 if !silent {
                     println!("Generating a new keypair");
                 }
@@ -82,7 +91,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
                 let keypair = keypair_from_seed(seed.as_bytes())?;
 
                 if let Some(outfile) = outfile {
-                    println!("Save keypair in file {outfile}");
+                    check_for_overwrite(outfile, matches)?;
                     output_keypair(&keypair, outfile, "new")
                         .map_err(|err| format!("Unable to write {outfile}: {err}"))?;
                 }
@@ -143,4 +152,16 @@ impl KeyGenerationCommonArgs for Command {
             .arg(language_arg())
             .arg(no_passphrase_arg())
     }
+}
+
+pub fn check_for_overwrite(
+    outfile: &str,
+    matches: &ArgMatches,
+) -> Result<(), Box<dyn error::Error>> {
+    let force = matches.get_flag("force");
+    if !force && Path::new(outfile).exists() {
+        let err_msg = format!("Refusing to overwrite {outfile} without --force flag");
+        return Err(err_msg.into());
+    }
+    Ok(())
 }
