@@ -1,0 +1,16 @@
+[package]
+name = "blockchain-entry"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+blockchain-merkle-tree = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }
+solana-hash = { workspace = true, features = ["serde"] }
+solana-sha256-hasher = { workspace = true }
+solana-transaction = { workspace = true, features = ["serde"] }

@@ -1,6 +1,7 @@
 //! The error that can be produced from Blockstore operations.
 
-use {solana_accounts_db::hardened_unpack::UnpackError, solana_clock::Slot, thiserror::Error};
+use blockchain_accounts_db::hardened_unpack::UnpackError;
+use {solana_clock::Slot, thiserror::Error};
 
 #[derive(Error, Debug)]
 pub enum BlockstoreError {

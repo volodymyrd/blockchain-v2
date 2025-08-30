@@ -1,5 +1,5 @@
 [package]
-name = "blockchain-cli-config"
+name = "blockchain-measure"
 version.workspace = true
 authors.workspace = true
 repository.workspace = true
@@ -8,6 +8,3 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-dirs-next = { workspace = true }
-serde = { workspace = true }
-serde_yaml_ng = { workspace = true }

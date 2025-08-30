@@ -9,10 +9,26 @@ edition.workspace = true
 
 [dependencies]
 bincode = { workspace = true }
+bitflags = { workspace = true }
+blockchain-accounts-db = { workspace = true }
+blockchain-entry = { workspace = true }
+blockchain-measure = { workspace = true }
+crossbeam-channel = { workspace = true }
 fs_extra = { workspace = true }
+log = { workspace = true }
+lru = { workspace = true }
+num_cpus = { workspace = true }
+num_enum = { workspace = true }
 prost = { workspace = true }
-solana-accounts-db = { workspace = true }
+serde = { workspace = true }
+serde_bytes = { workspace = true }
+solana-account = { workspace = true }
 solana-clock = { workspace = true }
+solana-genesis-config = { workspace = true }
+solana-hash = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-signature = { workspace = true }
+solana-time-utils= { workspace = true }
 thiserror = { workspace = true }
 
 [dependencies.rocksdb]

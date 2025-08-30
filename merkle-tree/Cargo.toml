@@ -1,0 +1,16 @@
+[package]
+name = "blockchain-merkle-tree"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+fast-math = { workspace = true }
+solana-hash = { workspace = true }
+solana-sha256-hasher = { workspace = true, features = ["sha2"] }
+
+[dev-dependencies]
+hex = { workspace = true }
