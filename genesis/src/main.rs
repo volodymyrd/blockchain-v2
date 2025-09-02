@@ -1,11 +1,16 @@
 use blockchain_accounts_db::hardened_unpack::MAX_GENESIS_ARCHIVE_UNPACKED_SIZE;
-use blockchain_clap_utils::input_parsers::{parse_percentage, parse_pubkey, parse_slot};
+use blockchain_clap_utils::input_parsers::{
+    parse_percentage, parse_pubkey, parse_slot, unix_timestamp_from_rfc3339_datetime,
+};
 use blockchain_entry::poh::compute_hashes_per_tick;
 use blockchain_ledger::blockstore::create_new_ledger;
 use blockchain_ledger::blockstore_options::LedgerColumnOptions;
+use blockchain_stake_program::{add_genesis_accounts, stake_state};
+use blockchain_vote_program::vote_state;
 use clap::{crate_description, crate_name, crate_version, Arg, ArgAction, Command};
+use solana_account::AccountSharedData;
 use solana_clock as clock;
-use solana_clock::Slot;
+use solana_clock::{Slot, UnixTimestamp};
 use solana_cluster_type::ClusterType;
 use solana_epoch_schedule::EpochSchedule;
 use solana_fee_calculator::FeeRateGovernor;
@@ -15,11 +20,13 @@ use solana_native_token::LAMPORTS_PER_SOL;
 use solana_poh_config::PohConfig;
 use solana_pubkey::Pubkey;
 use solana_rent::Rent;
+use solana_sdk_ids::system_program;
 use solana_stake_interface::state::StakeStateV2;
 use solana_vote_interface::state::VoteStateV3;
 use std::path::PathBuf;
-use std::process;
+use std::slice::Iter;
 use std::time::Duration;
+use std::{io, process};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let default_faucet_pubkey = Box::leak(
@@ -91,6 +98,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new(crate_name!())
         .about(crate_description!())
         .version(crate_version!())
+        .arg(
+            Arg::new("creation_time")
+                .long("creation-time")
+                .value_name("RFC3339 DATE TIME")
+                .value_parser(unix_timestamp_from_rfc3339_datetime)
+                .help("Time when the bootstrap validator will start the cluster [default: current system time]"),
+        )
         .arg(
             Arg::new("bootstrap_validator")
                 .short('b')
@@ -204,6 +218,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .help("percentage of collected fee to burn"),
         )
         .arg(
+            Arg::new("vote_commission_percentage")
+                .long("vote-commission-percentage")
+                .value_name("NUMBER")
+                .default_value("100")
+                .help("percentage of vote commission")
+                .value_parser(parse_percentage),
+        )
+        .arg(
             Arg::new("target_signatures_per_slot")
                 .long("target-signatures-per-slot")
                 .value_name("NUMBER")
@@ -260,6 +282,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ),
         )
         .arg(
+            Arg::new("primordial_accounts_file")
+                .long("primordial-accounts-file")
+                .value_name("FILENAME")
+                .action(ArgAction::Append)
+                .help("The location of pubkey for primordial accounts and balance"),
+        )
+        .arg(
+            Arg::new("validator_accounts_file")
+                .long("validator-accounts-file")
+                .value_name("FILENAME")
+                .action(ArgAction::Append)
+                .help("The location of a file containing a list of identity, vote, and \
+                stake pubkeys and balances for validator accounts to bake into genesis")
+        )
+        .arg(
             Arg::new("cluster_type")
                 .long("cluster-type")
                 .value_parser(clap::value_parser!(ClusterType))
@@ -308,6 +345,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .try_get_many::<Pubkey>("bootstrap_validator")?
         .unwrap()
         .into_iter()
+        .map(|pubkey| *pubkey)
         .collect::<Vec<_>>();
     assert_eq!(bootstrap_validator_pubkeys.len() % 3, 0);
 
@@ -339,10 +377,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .try_get_one::<u64>("faucet_lamports")?
         .copied()
         .unwrap_or(0);
-    let faucet_pubkey = matches
-        .try_get_one::<Pubkey>("faucet_pubkey")?
-        .copied()
-        .unwrap();
+    let faucet_pubkey = matches.try_get_one::<Pubkey>("faucet_pubkey")?.copied();
 
     // can use unwrap as we provided a default value.
     let ticks_per_slot = matches
@@ -447,10 +482,162 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         genesis_config.inflation = inflation;
     }
 
+    let commission = matches
+        .try_get_one::<u8>("vote_commission_percentage")?
+        .copied()
+        .unwrap();
+    let rent = genesis_config.rent.clone();
+
+    add_validator_accounts(
+        &mut genesis_config,
+        &mut bootstrap_validator_pubkeys.iter(),
+        bootstrap_validator_lamports,
+        bootstrap_validator_stake_lamports,
+        commission,
+        &rent,
+        bootstrap_stake_authorized_pubkey.as_ref(),
+    )?;
+
+    if let Some(creation_time) = matches
+        .try_get_one::<UnixTimestamp>("creation_time")?
+        .copied()
+    {
+        genesis_config.creation_time = creation_time;
+    }
+
+    if let Some(faucet_pubkey) = faucet_pubkey {
+        genesis_config.add_account(
+            faucet_pubkey,
+            AccountSharedData::new(faucet_lamports, 0, &system_program::id()),
+        );
+    }
+
+    add_genesis_accounts(&mut genesis_config);
+    // genesis_utils::activate_all_features(&mut genesis_config);
+    // if !features_to_deactivate.is_empty() {
+    //     solana_runtime::genesis_utils::deactivate_features(
+    //         &mut genesis_config,
+    //         &features_to_deactivate,
+    //     );
+    // }
+
+    // if let Some(files) = matches.try_get_many::<&str>("primordial_accounts_file")? {
+    //     for file in files {
+    //         load_genesis_accounts(file, &mut genesis_config)?;
+    //     }
+    // }
+    //
+    // if let Some(files) = matches.try_get_many::<&str>("validator_accounts_file") {
+    //     for file in files {
+    //         load_validator_accounts(file, commission, &rent, &mut genesis_config)?;
+    //     }
+    // }
+
     let max_genesis_archive_unpacked_size = matches
         .try_get_one::<u64>("max_genesis_archive_unpacked_size")?
         .copied()
         .unwrap();
+
+    let issued_lamports = genesis_config
+        .accounts
+        .values()
+        .map(|account| account.lamports)
+        .sum::<u64>();
+
+    // skip for development clusters
+    // add_genesis_accounts(&mut genesis_config, issued_lamports - faucet_lamports);
+
+    // let parse_address = |address: &str, input_type: &str| {
+    //     address.parse::<Pubkey>().unwrap_or_else(|err| {
+    //         eprintln!("Error: invalid {input_type} {address}: {err}");
+    //         process::exit(1);
+    //     })
+    // };
+    //
+    // let parse_program_data = |program: &str| {
+    //     let mut program_data = vec![];
+    //     File::open(program)
+    //         .and_then(|mut file| file.read_to_end(&mut program_data))
+    //         .unwrap_or_else(|err| {
+    //             eprintln!("Error: failed to read {program}: {err}");
+    //             process::exit(1);
+    //         });
+    //     program_data
+    // };
+    //
+    // if let Some(values) = matches.values_of("bpf_program") {
+    //     for (address, loader, program) in values.tuples() {
+    //         let address = parse_address(address, "address");
+    //         let loader = parse_address(loader, "loader");
+    //         let program_data = parse_program_data(program);
+    //         genesis_config.add_account(
+    //             address,
+    //             AccountSharedData::from(Account {
+    //                 lamports: genesis_config.rent.minimum_balance(program_data.len()),
+    //                 data: program_data,
+    //                 executable: true,
+    //                 owner: loader,
+    //                 rent_epoch: 0,
+    //             }),
+    //         );
+    //     }
+    // }
+    //
+    // if let Some(values) = matches.values_of("upgradeable_program") {
+    //     for (address, loader, program, upgrade_authority) in values.tuples() {
+    //         let address = parse_address(address, "address");
+    //         let loader = parse_address(loader, "loader");
+    //         let program_data_elf = parse_program_data(program);
+    //         let upgrade_authority_address = if upgrade_authority == "none" {
+    //             Pubkey::default()
+    //         } else {
+    //             upgrade_authority.parse::<Pubkey>().unwrap_or_else(|_| {
+    //                 read_keypair_file(upgrade_authority)
+    //                     .map(|keypair| keypair.pubkey())
+    //                     .unwrap_or_else(|err| {
+    //                         eprintln!(
+    //                             "Error: invalid upgrade_authority {upgrade_authority}: {err}"
+    //                         );
+    //                         process::exit(1);
+    //                     })
+    //             })
+    //         };
+    //
+    //         let (programdata_address, _) =
+    //             Pubkey::find_program_address(&[address.as_ref()], &loader);
+    //         let mut program_data = bincode::serialize(&UpgradeableLoaderState::ProgramData {
+    //             slot: 0,
+    //             upgrade_authority_address: Some(upgrade_authority_address),
+    //         })
+    //             .unwrap();
+    //         program_data.extend_from_slice(&program_data_elf);
+    //         genesis_config.add_account(
+    //             programdata_address,
+    //             AccountSharedData::from(Account {
+    //                 lamports: genesis_config.rent.minimum_balance(program_data.len()),
+    //                 data: program_data,
+    //                 owner: loader,
+    //                 executable: false,
+    //                 rent_epoch: 0,
+    //             }),
+    //         );
+    //
+    //         let program_data = bincode::serialize(&UpgradeableLoaderState::Program {
+    //             programdata_address,
+    //         })
+    //             .unwrap();
+    //         genesis_config.add_account(
+    //             address,
+    //             AccountSharedData::from(Account {
+    //                 lamports: genesis_config.rent.minimum_balance(program_data.len()),
+    //                 data: program_data,
+    //                 owner: loader,
+    //                 executable: true,
+    //                 rent_epoch: 0,
+    //             }),
+    //         );
+    //     }
+    // }
 
     solana_logger::setup();
     create_new_ledger(
@@ -462,4 +649,65 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("{genesis_config}");
     Ok(())
+}
+
+fn add_validator_accounts(
+    genesis_config: &mut GenesisConfig,
+    pubkeys_iter: &mut Iter<Pubkey>,
+    lamports: u64,
+    stake_lamports: u64,
+    commission: u8,
+    rent: &Rent,
+    authorized_pubkey: Option<&Pubkey>,
+) -> io::Result<()> {
+    rent_exempt_check(
+        stake_lamports,
+        rent.minimum_balance(StakeStateV2::size_of()),
+    )?;
+
+    loop {
+        let Some(identity_pubkey) = pubkeys_iter.next() else {
+            break;
+        };
+        let vote_pubkey = pubkeys_iter.next().unwrap();
+        let stake_pubkey = pubkeys_iter.next().unwrap();
+
+        genesis_config.add_account(
+            *identity_pubkey,
+            AccountSharedData::new(lamports, 0, &system_program::id()),
+        );
+
+        let vote_account = vote_state::create_account_with_authorized(
+            identity_pubkey,
+            identity_pubkey,
+            identity_pubkey,
+            commission,
+            VoteStateV3::get_rent_exempt_reserve(rent).max(1),
+        );
+
+        genesis_config.add_account(
+            *stake_pubkey,
+            stake_state::create_account(
+                authorized_pubkey.unwrap_or(identity_pubkey),
+                vote_pubkey,
+                &vote_account,
+                rent,
+                stake_lamports,
+            ),
+        );
+        genesis_config.add_account(*vote_pubkey, vote_account);
+    }
+    Ok(())
+}
+
+fn rent_exempt_check(stake_lamports: u64, exempt: u64) -> io::Result<()> {
+    if stake_lamports < exempt {
+        Err(io::Error::other(
+            format!(
+                "error: insufficient validator stake lamports: {stake_lamports} for rent exemption, requires {exempt}"
+            ),
+        ))
+    } else {
+        Ok(())
+    }
 }

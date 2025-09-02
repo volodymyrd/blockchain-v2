@@ -1,0 +1,20 @@
+[package]
+name = "blockchain-stake-program"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+bincode = { workspace = true }
+solana-account = { workspace = true, features = ["bincode"] }
+solana-config-interface = { workspace = true, features = ["bincode"] }
+solana-genesis-config = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-rent = { workspace = true }
+solana-sdk-ids = { workspace = true }
+solana-stake-interface = { workspace = true, features = ["bincode"] }
+solana-sysvar = { workspace = true }
+solana-vote-interface = { workspace = true, features = ["bincode"] }

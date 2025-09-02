@@ -1,4 +1,5 @@
-use solana_clock::Slot;
+use chrono::{DateTime, ParseResult};
+use solana_clock::{Slot, UnixTimestamp};
 use solana_keypair::{read_keypair_file, Keypair};
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
@@ -51,4 +52,10 @@ where
         .as_ref()
         .parse::<U>()
         .map_err(|err| format!("error parsing '{string}': {err}"))
+}
+
+pub fn unix_timestamp_from_rfc3339_datetime(value: &str) -> Result<UnixTimestamp, String> {
+    DateTime::parse_from_rfc3339(value)
+        .map(|date_time| date_time.timestamp())
+        .map_err(|e| format!("failed parsing date '{value}': {e}"))
 }

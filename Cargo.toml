@@ -1,7 +1,7 @@
 [workspace]
-members = ["accounts-db", "blockchain", "clap-utils", "cli-config", "entry",
-    "genesis", "gossip", "keygen", "ledger", "measure", "merkle-tree", "net-utils",
-    "rpc", "streamer", "validator"]
+members = ["accounts-db", "blockchain", "clap-utils", "cli-config", "entry", "feature-set",
+    "genesis", "gossip", "keygen", "ledger", "measure", "merkle-tree", "net-utils", "programs/stake", "programs/vote",
+    "rpc", "runtime", "streamer", "validator"]
 
 resolver = "2"
 
@@ -16,9 +16,11 @@ edition = "2021"
 [workspace.dependencies]
 anyhow = "1.0.99"
 assert_matches = "1.5.0"
+ahash = "0.8.12"
 bincode = "1.3.3"
 bitflags = "2.9.3"
 bzip2 = "0.6.0"
+chrono = "0.4.41"
 crossbeam-channel = "0.5.15"
 clap = { version = "4.5.41", features = ["cargo"] }
 dirs-next = "2.0.0"
@@ -42,8 +44,12 @@ socket2 = "0.6.0"
 solana-account = "3.0.0"
 solana-clock = "3.0.0"
 solana-cluster-type = "3.0.0"
+solana-config-interface = "2.0.0"
 solana-epoch-schedule = "3.0.0"
+solana-feature-gate-interface = "3.0.0"
 solana-fee-calculator = "3.0.0"
+solana-frozen-abi = "3.0.0"
+solana-frozen-abi-macro = "3.0.0"
 solana-genesis-config = "3.0.0"
 solana-inflation = "3.0.0"
 solana-keypair = "3.0.0"
@@ -53,11 +59,13 @@ solana-native-token = "3.0.0"
 solana-poh-config = "3.0.0"
 solana-pubkey = "3.0.0"
 solana-rent = "3.0.0"
+solana-sdk-ids = "3.0.0"
 solana-signature = "3.0.0"
 solana-signer = "3.0.0"
 solana-serde-varint = "3.0.0"
 solana-sha256-hasher = "3.0.0"
 solana-stake-interface = "2.0.1"
+solana-sysvar = "3.0.0"
 solana-time-utils = "3.0.0"
 solana-transaction = "3.0.0"
 solana-vote-interface = "3.0.0"
@@ -74,8 +82,13 @@ blockchain-clap-utils = { path = "clap-utils" }
 blockchain-cli-config = { path = "cli-config" }
 blockchain-core = { path = "blockchain" }
 blockchain-entry = { path = "entry" }
+blockchain-feature-set = { path = "feature-set" }
 blockchain-gossip = { path = "gossip" }
 blockchain-ledger = { path = "ledger" }
 blockchain-measure = { path = "measure" }
 blockchain-merkle-tree = { path = "merkle-tree" }
 blockchain-net-utils = { path = "net-utils" }
+blockchain-runtime = { path = "runtime" }
+# programs
+blockchain-stake-program = { path = "programs/stake" }
+blockchain-vote-program = { path = "programs/vote" }

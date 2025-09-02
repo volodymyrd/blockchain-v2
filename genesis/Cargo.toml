@@ -13,7 +13,11 @@ blockchain-cli-config = { workspace = true }
 blockchain-clap-utils = { workspace = true }
 blockchain-entry = { workspace = true }
 blockchain-ledger = { workspace = true }
+blockchain-runtime = { workspace = true }
+blockchain-stake-program = { workspace = true }
+blockchain-vote-program = { workspace = true }
 clap = { workspace = true }
+solana-account = { workspace = true }
 solana-clock = { workspace = true }
 solana-cluster-type = { workspace = true }
 solana-epoch-schedule = { workspace = true }
@@ -25,5 +29,6 @@ solana-native-token = { workspace = true }
 solana-poh-config = { workspace = true }
 solana-pubkey = { workspace = true }
 solana-rent = { workspace = true }
+solana-sdk-ids = { workspace = true }
 solana-stake-interface = { workspace = true }
 solana-vote-interface = { workspace = true }
