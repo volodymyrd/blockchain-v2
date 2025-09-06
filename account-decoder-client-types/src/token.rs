@@ -1,6 +1,6 @@
 use {
     core::str::FromStr,
-    serde::{Deserialize, Serialize},
+    serde_derive::{Deserialize, Serialize},
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
