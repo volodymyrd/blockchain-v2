@@ -1,3 +1,4 @@
+pub mod multihomed_sockets;
 pub mod sockets;
 
 use rand::{rng, Rng};
@@ -142,7 +143,7 @@ mod tests {
     #[test]
     fn test_find_available_port_in_range() {
         let ip_addr = IpAddr::V4(Ipv4Addr::LOCALHOST);
-        let (pr_s, pr_e) = sockets::tests::localhost_port_range_for_tests();
+        let (pr_s, pr_e) = sockets::localhost_port_range_for_tests();
         assert_eq!(
             find_available_port_in_range(ip_addr, (pr_s, pr_s + 1)).unwrap(),
             pr_s

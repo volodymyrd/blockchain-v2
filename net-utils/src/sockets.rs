@@ -3,7 +3,9 @@ use crate::PortRange;
 use log::warn;
 use socket2::{Domain, SockAddr, Socket, Type};
 use std::io;
-use std::net::{IpAddr, SocketAddr, TcpListener, UdpSocket};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, UdpSocket};
+use std::ops::Range;
+use std::sync::atomic::{AtomicU16, Ordering};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SocketConfiguration {
@@ -101,7 +103,14 @@ pub(crate) fn udp_socket_with_config(config: SocketConfiguration) -> io::Result<
     Ok(sock)
 }
 
-#[cfg(test)]
+/// Bind a `UdpSocket` to a unique port.
+pub fn bind_to_localhost_unique() -> io::Result<UdpSocket> {
+    bind_to(
+        IpAddr::V4(Ipv4Addr::LOCALHOST),
+        unique_port_range_for_tests(1).start,
+    )
+}
+
 pub(crate) fn bind_to(ip_addr: IpAddr, port: u16) -> io::Result<UdpSocket> {
     let config = SocketConfiguration {
         ..Default::default()
@@ -109,7 +118,6 @@ pub(crate) fn bind_to(ip_addr: IpAddr, port: u16) -> io::Result<UdpSocket> {
     bind_to_with_config(ip_addr, port, config)
 }
 
-#[cfg(test)]
 fn bind_to_with_config(
     ip_addr: IpAddr,
     port: u16,
@@ -128,8 +136,7 @@ pub(crate) fn bind_in_range(ip_addr: IpAddr, range: PortRange) -> io::Result<(u1
     bind_in_range_with_config(ip_addr, range, config)
 }
 
-#[cfg(test)]
-pub(crate) fn bind_in_range_with_config(
+pub fn bind_in_range_with_config(
     ip_addr: IpAddr,
     range: PortRange,
     config: SocketConfiguration,
@@ -196,80 +203,72 @@ pub fn multi_bind_in_range_with_config(
     Ok((port, sockets))
 }
 
-#[cfg(test)]
-pub(crate) mod tests {
-    use std::ops::Range;
-    use std::sync::atomic::{AtomicU16, Ordering};
-    use {super::*, std::net::Ipv4Addr};
-
-    // base port for deconflicted allocations
-    const BASE_PORT: u16 = 5000;
-    // how much to allocate per individual process.
-    // we expect to have at most 64 concurrent tests in CI at any moment on a given host.
-    const SLICE_PER_PROCESS: u16 = (u16::MAX - BASE_PORT) / 64;
-    /// When running under nextest, this will try to provide
-    /// a unique slice of port numbers (assuming no other nextest processes
-    /// are running on the same host) based on NEXTEST_TEST_GLOBAL_SLOT variable
-    /// The port ranges will be reused following nextest logic.
-    ///
-    /// When running without nextest, this will only bump an atomic and eventually
-    /// panic when it runs out of port numbers to assign.
-    #[allow(clippy::arithmetic_side_effects)]
-    pub fn unique_port_range_for_tests(size: u16) -> Range<u16> {
-        static SLICE: AtomicU16 = AtomicU16::new(0);
-        let offset = SLICE.fetch_add(size, Ordering::Relaxed);
-        let start = offset
-            + match std::env::var("NEXTEST_TEST_GLOBAL_SLOT") {
-                Ok(slot) => {
-                    let slot: u16 = slot.parse().unwrap();
-                    assert!(
-                offset < SLICE_PER_PROCESS,
-                "Overrunning into the port range of another test! Consider using fewer ports \
+// base port for deconflicted allocations
+const BASE_PORT: u16 = 5000;
+// how much to allocate per individual process.
+// we expect to have at most 64 concurrent tests in CI at any moment on a given host.
+const SLICE_PER_PROCESS: u16 = (u16::MAX - BASE_PORT) / 64;
+/// When running under nextest, this will try to provide
+/// a unique slice of port numbers (assuming no other nextest processes
+/// are running on the same host) based on NEXTEST_TEST_GLOBAL_SLOT variable
+/// The port ranges will be reused following nextest logic.
+///
+/// When running without nextest, this will only bump an atomic and eventually
+/// panic when it runs out of port numbers to assign.
+#[allow(clippy::arithmetic_side_effects)]
+pub fn unique_port_range_for_tests(size: u16) -> Range<u16> {
+    static SLICE: AtomicU16 = AtomicU16::new(0);
+    let offset = SLICE.fetch_add(size, Ordering::Relaxed);
+    let start = offset
+        + match std::env::var("NEXTEST_TEST_GLOBAL_SLOT") {
+            Ok(slot) => {
+                let slot: u16 = slot.parse().unwrap();
+                assert!(
+                    offset < SLICE_PER_PROCESS,
+                    "Overrunning into the port range of another test! Consider using fewer ports \
                      per test."
-            );
-                    BASE_PORT + slot * SLICE_PER_PROCESS
-                }
-                Err(_) => BASE_PORT,
-            };
-        assert!(start < u16::MAX - size, "Ran out of port numbers!");
-        start..start + size
-    }
+                );
+                BASE_PORT + slot * SLICE_PER_PROCESS
+            }
+            Err(_) => BASE_PORT,
+        };
+    assert!(start < u16::MAX - size, "Ran out of port numbers!");
+    start..start + size
+}
 
-    /// Retrieve a free 20-port slice for unit tests
-    ///
-    /// When running under nextest, this will try to provide
-    /// a unique slice of port numbers (assuming no other nextest processes
-    /// are running on the same host) based on NEXTEST_TEST_GLOBAL_SLOT variable
-    /// The port ranges will be reused following nextest logic.
-    ///
-    /// When running without nextest, this will only bump an atomic and eventually
-    /// panic when it runs out of port numbers to assign.
-    pub fn localhost_port_range_for_tests() -> (u16, u16) {
-        let pr = unique_port_range_for_tests(20);
-        (pr.start, pr.end)
-    }
+/// Retrieve a free 20-port slice for unit tests
+///
+/// When running under nextest, this will try to provide
+/// a unique slice of port numbers (assuming no other nextest processes
+/// are running on the same host) based on NEXTEST_TEST_GLOBAL_SLOT variable
+/// The port ranges will be reused following nextest logic.
+///
+/// When running without nextest, this will only bump an atomic and eventually
+/// panic when it runs out of port numbers to assign.
+pub fn localhost_port_range_for_tests() -> (u16, u16) {
+    let pr = unique_port_range_for_tests(20);
+    (pr.start, pr.end)
+}
 
-    #[test]
-    fn test_bind() {
-        let (pr_s, pr_e) = localhost_port_range_for_tests();
-        let ip_addr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
-        let config = SocketConfiguration::default();
-        let s = bind_in_range(ip_addr, (pr_s, pr_e)).unwrap();
-        assert_eq!(s.0, pr_s, "bind_in_range should use first available port");
-        let ip_addr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
-        let x = bind_to_with_config(ip_addr, pr_s + 1, config).unwrap();
-        let y = bind_more_with_config(x, 2, config).unwrap();
-        assert_eq!(
-            y[0].local_addr().unwrap().port(),
-            y[1].local_addr().unwrap().port()
-        );
-        bind_to_with_config(ip_addr, pr_s, SocketConfiguration::default()).unwrap_err();
-        bind_in_range(ip_addr, (pr_s, pr_s + 2)).unwrap_err();
+#[test]
+fn test_bind() {
+    let (pr_s, pr_e) = localhost_port_range_for_tests();
+    let ip_addr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+    let config = SocketConfiguration::default();
+    let s = bind_in_range(ip_addr, (pr_s, pr_e)).unwrap();
+    assert_eq!(s.0, pr_s, "bind_in_range should use first available port");
+    let ip_addr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+    let x = bind_to_with_config(ip_addr, pr_s + 1, config).unwrap();
+    let y = bind_more_with_config(x, 2, config).unwrap();
+    assert_eq!(
+        y[0].local_addr().unwrap().port(),
+        y[1].local_addr().unwrap().port()
+    );
+    bind_to_with_config(ip_addr, pr_s, SocketConfiguration::default()).unwrap_err();
+    bind_in_range(ip_addr, (pr_s, pr_s + 2)).unwrap_err();
 
-        let (port, v) =
-            multi_bind_in_range_with_config(ip_addr, (pr_s + 5, pr_e), config, 10).unwrap();
-        for sock in &v {
-            assert_eq!(port, sock.local_addr().unwrap().port());
-        }
+    let (port, v) = multi_bind_in_range_with_config(ip_addr, (pr_s + 5, pr_e), config, 10).unwrap();
+    for sock in &v {
+        assert_eq!(port, sock.local_addr().unwrap().port());
     }
 }
