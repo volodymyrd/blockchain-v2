@@ -8,3 +8,22 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
+crossbeam-channel = { workspace = true }
+blockchain-net-utils = { workspace = true, features = ["agave-unstable-api"] }
+blockchain-perf = { workspace = true }
+itertools = { workspace = true }
+histogram = { workspace = true }
+log = { workspace = true }
+nix = { workspace = true, features = ["net", "poll", "signal"] }
+solana-keypair = { workspace = true }
+solana-packet = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-time-utils = { workspace = true }
+solana-transaction-error = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+assert_matches = { workspace = true }
+solana-logger = { workspace = true }
+blockchain-net-utils = { workspace = true, features = ["dev-context-only-utils"] }
